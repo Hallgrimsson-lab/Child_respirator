@@ -1,0 +1,219 @@
+# Load Libraries
+```{r} 
+library(rgl)
+library(geomorph)
+library(ggplot2)
+library(ggfortify)
+library(Morpho)
+```
+# Load Data
+```{r} 
+dat_kids <- read.csv("dat_kids.csv", header = T)
+Y <- read.csv("data_lms.csv",header=F); Y <- as.matrix(Y)
+X <- read.csv("data_covs.csv",header=T)
+
+data <- geomorph.data.frame(shape = Y, age = X$Age, age2 = X$Age^2, age3 = X$Age^3, sex = as.factor(X$Sex), race = as.factor(X$Race2))
+avg.data <- as.numeric(colMeans(data$shape))
+
+# Plot
+tmp <- data.frame(shape = Y, age = X$Age, age2 = X$Age^2, age3 = X$Age^3, sex = as.factor(X$Sex), race = as.factor(X$Race2))
+
+ggplot(tmp, aes(x=age, color=sex, fill = sex)) +
+  geom_density(alpha=0.5)
+ggplot(tmp, aes(x=race, fill = race)) +
+  geom_bar()
+ggplot(tmp, aes(x=sex, fill = sex)) +
+  geom_bar()
+```
+# Do PCA
+```{r}
+pca.lms <- prcomp(data$shape)
+
+plot(pca.lms)
+expl <- pca.lms$sdev^2
+expl <- 100 * expl/(sum(expl))
+
+autoplot(pca.lms)
+
+# Plot PC1
+pc <- 1
+pc.scores <- pca.lms$x[,pc]
+pc.max <- max(pc.scores) %*% (pca.lms$rotation[,pc]) + avg.data; pc.max <- as.numeric(pc.max)
+pc.min <- min(pc.scores) %*% (pca.lms$rotation[,pc]) + avg.data; pc.min <- as.numeric(pc.min)
+
+open3d()
+points3d(avg.data, col = "blue")
+points3d(pc.min, col = "red")
+points3d(pc.max, col = "black")
+```
+# Shape ~ Age + Sex + Race
+```{r}
+data.lm <- procD.lm(f1 = shape ~ sex + age + age2 + age3 + race + age:sex + age:race + sex:race, data = data, RRPP=TRUE, iter = 999, print.progress=TRUE)
+summary(data.lm)
+
+selected.age <- seq(2,18,0.5)
+selected.age2 <- selected.age^2
+selected.age3 <- selected.age^3
+selected.sex <- unique(data$sex)# F M
+selected.race <- unique(data$race)# EUR AMR SAD AFR EAS
+
+pred.shape = array(NA,c(length(selected.age)*length(selected.sex)*length(selected.race),195))
+pred.var <- array("NA",c(length(selected.age)*length(selected.sex)*length(selected.race),1))
+count <- 1
+for (i in 1:length(selected.age)){
+  for (j in 1:length(selected.sex)){
+    for (k in 1:length(selected.race)){
+      print(count)
+     
+      datamod <- ~ selected.sex[j] + selected.age[i] + selected.age2[i] + selected.age3[i] + selected.race[k] + selected.age[i]:selected.sex[j] + selected.age[i]:selected.race[k] + selected.sex[j]:selected.race[k]
+      mat <- model.matrix(datamod)
+      pred <- mat %*% data.lm$coefficients
+      
+      pred.shape[count,] <- pred
+      pred.var[count] <- paste(as.character(selected.sex[j]),as.character(selected.age[i]),as.character(selected.race[k]), sep="_")
+      count <- count+1
+    }
+  }
+}
+row.names(pred.shape) <- pred.var
+#write.csv(pred.shape,"data_preds_AgeSexRace.csv")
+```
+# Shape ~ Age + Sex
+```{r}
+# Get race residuals
+data.lm2a <- procD.lm(f1 = shape ~ race, data = data, RRPP=TRUE, iter = 999, print.progress=TRUE)
+summary(data.lm2a)
+
+res <- data.lm2a$residuals
+
+# Add average
+n_id <- as.numeric(nrow(res))
+n_lm <- 65;
+t2_pr<-array(NA, dim=c(n_id,n_lm*3))
+for (i in 1:n_id){
+  t2_pr[i,] <- avg.data }
+
+Y2 <- t2_pr + res
+data2 <- geomorph.data.frame(shape = Y2, age = X$Age, age2 = X$Age^2, age3 = X$Age^3, sex = as.factor(X$Sex), race = as.factor(X$Race2))
+
+# build age+sex model
+data.lm2b <- procD.lm(f1 = shape ~ sex + age + age2 + age3 + age:sex, data = data2, RRPP=TRUE, iter = 999, print.progress=TRUE)
+
+selected.age <- c(2,10,18)
+selected.age2 <- selected.age^2
+selected.age3 <- selected.age^3
+selected.sex <- unique(data$sex)# F M
+
+pred.shape = array(NA,c(length(selected.age)*length(selected.sex),195))
+pred.var <- array("NA",c(length(selected.age)*length(selected.sex),1))
+count <- 1
+for (i in 1:length(selected.age)){
+  for (j in 1:length(selected.sex)){
+      print(count)
+      
+      datamod <- ~ selected.sex[j] + selected.age[i] + selected.age2[i] + selected.age3[i] + selected.age[i]:selected.sex[j]
+      mat <- model.matrix(datamod)
+      pred <- mat %*% data.lm2b$coefficients
+
+      pred.shape[count,] <- pred
+      pred.var[count] <- paste(as.character(selected.sex[j]),as.character(selected.age[i]), sep="_")
+      count <- count+1
+  }
+}
+row.names(pred.shape) <- pred.var
+#write.csv(pred.shape,"data_preds_AgeSex.csv")
+```
+#  Shape ~ Age
+```{r}
+# Get race + sex residuals
+data.lm3a <- procD.lm(f1 = shape ~ race + sex + sex:race, data = data, RRPP=TRUE, iter = 999, print.progress=TRUE)
+
+res <- data.lm3a$residuals
+
+# Add average
+n_id <- as.numeric(nrow(res))
+n_lm <- 65;
+t2_pr<-array(NA, dim=c(n_id,n_lm*3))
+for (i in 1:n_id){
+  t2_pr[i,] <- avg.data }
+
+Y3 <- t2_pr + res
+data3 <- geomorph.data.frame(shape = Y3, age = X$Age, age2 = X$Age^2, age3 = X$Age^3, sex = as.factor(X$Sex), race = as.factor(X$Race2))
+
+# build age model
+data.lm3b <- procD.lm(f1 = shape ~ age + age2 + age3, data = data3, RRPP=FALSE, iter = 999, print.progress=TRUE)
+
+selected.age <- seq(2,18,0.5)
+selected.age2 <- selected.age^2
+selected.age3 <- selected.age^3
+
+pred.shape = array(NA,c(length(selected.age),195))
+pred.var <- array("NA",c(length(selected.age),1))
+count <- 1
+for (i in 1:length(selected.age)){
+    print(count)
+    
+    datamod <- ~ selected.age[i] + selected.age2[i] + selected.age3[i]
+    mat <- model.matrix(datamod)
+    pred <- mat %*% data.lm3b$coefficients
+
+    pred.shape[count,] <- pred
+    pred.var[count] <- paste('AGE',as.character(selected.age[i]), sep="_")
+    count <- count+1
+}
+row.names(pred.shape) <- pred.var
+#write.csv(pred.shape,"data_preds_Age.csv")
+```
+# Figures
+``` {r}
+atlas <-Morpho::file2mesh("dense_2k_ears_atlas.ply")
+atlas_lms <- read.csv("landmarks_65.txt",header = F,sep = " ")
+atlas_lms <- as.matrix(atlas_lms)
+
+pred.asr <- read.csv("data_preds_AgeSexRace.csv")
+pred.as <- read.csv("data_preds_AgeSexRace.csv")
+pred.a <- read.csv("data_preds_Age.csv")
+
+# Mean Age
+select.age <- 2.5
+i <- rownames(pred.a) == paste("AGE_",select.age,sep="")
+tmp_lms <- t(matrix(pred.a[i,],ncol=n_lm,nrow=3))
+
+my_morph <- tps3d(atlas, atlas_lms, tmp_lms)
+open3d(); plot3d(my_morph, col = adjustcolor("lightgrey", .3), alpha = .9, specular = 1, axes = F, box = F, xlab = "", ylab = "", zlab = "", main = "", aspect = "iso")
+
+# PC per Age
+select.age <- 2
+i <- rownames(pred.a) == paste("AGE_",select.age,sep="")
+tmp_lms <- pred.a[i,]
+
+select.pc <- 2
+tmp_coeff <- rep(0,1,length(pca.lms$sdev))
+#tmp_coeff[select.pc] <- (-3) * pca.lms$sdev[select.pc]# min
+tmp_coeff[select.pc] <- (3) * pca.lms$sdev[select.pc]# max
+tmp_coeff <- pca.lms$rotation %*% tmp_coeff
+
+tmp_rec <- tmp_lms + tmp_coeff
+tmp_rec <- t(matrix(tmp_rec,ncol=n_lm,nrow=3))
+my_morph <- tps3d(atlas, atlas_lms, tmp_rec)
+open3d(); plot3d(my_morph, col = adjustcolor("lightgrey", .3), alpha = .9, specular = 1, axes = F, box = F, xlab = "", ylab = "", zlab = "", main = "", aspect = "iso")
+
+# Mean Age per Sex
+select.age <- 18
+select.sex <- "M"
+i <- rownames(pred.as) == paste(select.sex,"_",select.age,sep="")
+tmp_lms <- t(matrix(pred.as[i,],ncol=n_lm,nrow=3))
+
+my_morph <- tps3d(atlas, atlas.lms, tmp_lms)
+open3d(); plot3d(my_morph, col = adjustcolor("lightgrey", .3), alpha = .9, specular = 1, axes = F, box = F, xlab = "", ylab = "", zlab = "", main = "", aspect = "iso")
+
+# Mean Age per Sex and Race
+select.age <- 8.5
+select.sex <- "F"
+select.race <- "EAS"
+i <- rownames(pred.asr) == paste(select.sex,"_",select.age,"_",select.race,sep="")
+tmp_lms <- t(matrix(pred.asr[i,],ncol=n_lm,nrow=3))
+
+my_morph <- tps3d(atlas, atlas.lms, tmp_lms)
+open3d(); plot3d(my_morph, col = adjustcolor("lightgrey", .3), alpha = .9, specular = 1, axes = F, box = F, xlab = "", ylab = "", zlab = "", main = "", aspect = "iso")
+```
