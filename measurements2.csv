@@ -1,0 +1,19 @@
+﻿meas_no,Measurement,Origin,End,full_meas_name
+1,Max_front_breadth,R17,L17,Maximal Frontal Breadth
+2,Facial_Width,R18,L18,Facial Width
+3,Bigonial_breadth,R16,L16,Bigonial Breadth
+4,Face_length,M04,M13,Facial Length
+5,Nose_protrusion,M07,M06,Nasal Protrusion
+6,Nose_breadth,R07,L07,Nasal Breadth
+7,Nose_root_breadth,R05,L05,Nasal Root Breadth
+8,Subnasale_sellion_lgth,M07,M04,Subnasale to Sellion
+9,lip_length,R11,L11,Lip Length
+10,Pupil_dist,R_P,L_P,Interpupilary Distance
+11,Intercanth_dist,R03,L03,Intercanthal Distance
+12,Ext_orbital_dist,R04,L04,External Orbital Distance
+13,Lower_face_ht,M07,M13,Lower Facial Height
+14,R_Face_prognathism,R14,M06,Right Facial Prognathism
+15,L_Face_prognathism,L14,M06,Left Facial Prognathism
+16,R_Facial_depth,R12,M06,Right Facial Depth
+17,L_Facial_depth,L12,M06,Left Facial Depth
+18,Mand_height,M09,M13,Chin Height

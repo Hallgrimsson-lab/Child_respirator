@@ -1,0 +1,12 @@
+meas_no,Measurement,Origin,End
+1,Max_front_breadth,R17,L17
+2,Facial_Width,R18,L18
+3,Bigonial_breadth,R16,L16
+4,Face_length,M04,M13
+5.1,Pupil_dist_1,R04,L04
+5.2,Pupil_dist_2,R03,L03
+6,Nose_protrusion,M07,M06
+7,Nose_breadth,R07,L07
+8,Nose_root_breadth,R05,L05
+9,Subnasale_sellion_lgth,M07,M04
+10,lip_length,R11,L11
